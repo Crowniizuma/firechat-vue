@@ -1,21 +1,107 @@
 <template>
-  <div class="view login">
-    <form class="login-form">
-      <h1>Login to FireChat</h1>
-      <label for="username">Username</label>
-      <input type="text" name="username" placeholder="Please enter your username" />
-      <input type="submit" value="Login" />
+  <div class="view login" v-if="state.username === '' || state.username === null">
+    <form class="login-form" @submit.prevent="Login">
+			<div class="form-inner">
+				<h1>Login to FireChat</h1>
+				<label for="username">Username</label>
+				<input 
+					v-model="inputUsername" 
+					type="text" 
+					placeholder="Please enter your username" />
+				<input type="submit" value="Login" />
+			</div>
     </form>
   </div>
-  <div class="view chat"></div>
+  <div v-else class="view chat">
+		<header>
+			<button class="logout">Logout</button>
+			<h1>Welcome, {{ state.username }}</h1>
+		</header>
+		<section class="chat-box">
+			<div 
+				v-for="message in state.message" 
+				:key="message.key" 
+				:class="(message.username == state.username ? 'message current-user' : 'message')">
+				<div class="message-inner">
+					<div class="username">{{ message.username }}</div>
+					<div class="content">{{ message.content }}</div>
+				</div>
+			</div>
+		</section>
+		<footer>
+			<form @submit.prevent="SendMessage">
+				<input type="text" v-model="inputMessage" placeholder="Write a message..." />
+				<input type="submit" value="Send" />
+			</form>
+		</footer>
+	</div>
 </template>
 
 <script>
-import db from './db';
+import { getDatabase, ref as DBref, push as DBpush,onValue } from '@firebase/database';
+import { reactive, onMounted, ref } from 'vue';
+import app from './db';
 
 export default {
   setup () {
-    return {}
+		const db = getDatabase(app,"https://fir-vue-chatapp-86cb4-default-rtdb.asia-southeast1.firebasedatabase.app");
+		const inputUsername = ref("");
+		const inputMessage = ref("");
+		
+		const state = reactive({
+			username: "",
+			message: []
+		});
+		
+		const Login = () => {
+			if(inputUsername.value != "" || inputUsername.value != null) {
+				state.username = inputUsername.value;
+				inputUsername.value = "";
+			}
+		}
+
+		const SendMessage = () => {
+			const messageRef = DBref(db,"messages");
+
+			if(inputMessage.value === "" || inputMessage.value === null) {
+				return;
+			}
+
+			const message = {
+				username: state.username,
+				content: inputMessage.value
+			}
+
+			DBpush(messageRef,message);
+			inputMessage.value = "";
+
+
+		};
+
+		onMounted(() => {
+			const messageRef = DBref(db,"messages");
+			onValue(messageRef, (snapshot) => {
+				const data = snapshot.val();
+				let messages = [];
+				Object.keys(data).forEach(key => {
+					messages.push({
+						id: key,
+						username: data[key].username,
+						content: data[key].content
+					});
+
+					state.message = messages;
+				})
+			})
+		})
+
+    return {
+			inputUsername,
+			Login,
+			state,
+			inputMessage,
+			SendMessage
+		}
   }
 }
 </script>

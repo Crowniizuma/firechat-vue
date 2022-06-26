@@ -12,5 +12,5 @@ const config = {
   measurementId: "G-J1NCKVVVZ8"
 }
 
-const db = initializeApp(config);
-export default db;
+const app = initializeApp(config);
+export default app;
